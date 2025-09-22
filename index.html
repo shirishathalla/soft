@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Smart Doc Checker — Prototype</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    .card { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; }
+    .conflict { background:#fff3f3; border-left:4px solid #e55353; padding:0.5rem; margin:0.5rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Smart Doc Checker — Prototype</h1>
+  <div class="card">
+    <h3>Upload up to 3 documents</h3>
+    <input id="files" type="file" multiple />
+    <button id="uploadBtn">Upload</button>
+    <div id="uploadResult"></div>
+  </div>
+
+  <div class="card">
+    <h3>Analyze</h3>
+    <button id="analyzeBtn">Run Analysis</button>
+    <div id="analysisResult"></div>
+  </div>
+
+  <script>
+    let uploadedIds = [];
+    const backend = "http://localhost:8000";
+
+    document.getElementById('uploadBtn').onclick = async () => {
+      const files = document.getElementById('files').files;
+      if (!files.length) return alert('Choose files first');
+      const form = new FormData();
+      for (let i=0; i<files.length && i<3; i++) form.append('files', files[i]);
+      const res = await fetch(backend+'/upload', { method:'POST', body: form });
+      const data = await res.json();
+      uploadedIds = data.file_ids || [];
+      document.getElementById('uploadResult').innerText = 'Uploaded file ids: ' + JSON.stringify(uploadedIds);
+    };
+
+    document.getElementById('analyzeBtn').onclick = async () => {
+      if (!uploadedIds.length) return alert('Upload files first');
+      const res = await fetch(backend+'/analyze', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ file_ids: uploadedIds, user_id: 'demo-user' })
+      });
+      const data = await res.json();
+      const el = document.getElementById('analysisResult');
+      el.innerHTML = '<h4>Conflicts found: ' + data.conflicts.length + '</h4>';
+      data.conflicts.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'conflict';
+        d.innerHTML = '<b>Type:</b> ' + c.conflict_type + '<br/><b>Doc A:</b> ' + c.excerpt_a + '<br/><b>Doc B:</b> ' + c.excerpt_b + '<br/><b>Suggestion:</b> ' + c.suggestion;
+        el.appendChild(d);
+      });
+    };
+  </script>
+</body>
+</html>
